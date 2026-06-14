@@ -1,104 +1,106 @@
 # HÉRITAGES
 
-Client demo for the HÉRITAGES apparel experience: hero animation, city collections, product configurator, cart drawer, and WhatsApp ordering.
+Site vitrine pour la collection World Cup Series HÉRITAGES — maillots iconiques inspirés des villes africaines et mondiales.
+
+**"EVERY CITY HAS A STORY"**
 
 ## Stack
 
-- React 18
-- Vite 5
-- Tailwind CSS
-- GSAP + ScrollTrigger
-- `@gsap/react`
-- Framer Motion
-- Lenis smooth scroll on desktop
+- React 18 + Vite 5
+- Tailwind CSS 3
+- GSAP 3 + ScrollTrigger + `@gsap/react`
+- Framer Motion 11
+- Lenis smooth scroll (desktop uniquement)
 
-## Local Setup
+## Démarrage local
 
 ```bash
 npm install
 npm run dev
+# → http://localhost:5173
 ```
 
-Local URL:
-
-```text
-http://localhost:5173
-```
-
-## Production Build
+## Build & Déploiement
 
 ```bash
-npm run build
-npm run preview
+npm run build    # génère dist/
+npm run preview  # prévisualise le build
 ```
 
-The production output is generated in `dist/`.
+**Vercel** : framework `Vite`, build command `npm run build`, output `dist`.  
+Le fichier `vercel.json` configure le SPA rewrite vers `index.html`.
 
-## Deploy On Vercel
+## Structure du projet
 
-Vercel settings:
-
-- Framework preset: `Vite`
-- Build command: `npm run build`
-- Output directory: `dist`
-- Install command: `npm install`
-
-This repo includes `vercel.json` with the same build settings and an SPA rewrite to `index.html`.
-
-## Main Features
-
-- Loading screen with GSAP animation
-- Sticky scroll-mask hero
-- City collection section with selector
-- Dynamic configurator:
-  - all countries
-  - free city input
-  - style, color, size
-  - multiple custom personalization requests
-- Cart management:
-  - add configured products
-  - quantity controls
-  - remove item
-  - clear cart
-  - persistent cart via `localStorage`
-  - WhatsApp order message
-- Responsive mobile-friendly layout
-
-## Project Structure
-
-```text
+```
 src/
-  App.jsx
-  index.css
+  App.jsx                  # Lenis + structure globale
+  index.css                # Variables, scrollbar, utilitaires
   components/
-    CartDrawer.jsx
-    CitiesSection.jsx
-    CitySelector.jsx
-    Configurator.jsx
-    Footer.jsx
-    Header.jsx
-    Hero.jsx
-    LoadingScreen.jsx
+    Header.jsx             # Fixe, transparent → opaque au scroll
+    Hero.jsx               # Sticky mask reveal (SVG text mask, GSAP scrub)
+    Configurator.jsx       # Formulaire configurateur + modale confirmation
+    Footer.jsx             # 3 colonnes : Liens / Pays / Contact
+    CartDrawer.jsx         # Tiroir panier + commande WhatsApp
   context/
-    CartContext.jsx
-    ThemeContext.jsx
+    CartContext.jsx        # État global panier, localStorage
   data/
-    cities.js
-    worldCountries.js
+    countries.js           # 12 pays de la collection
 public/
-  favicon.svg
   images/
+    photohero1.png         # Fond du Hero (lookbook)
+  collection/
+    benin.jpeg
+    cameroun.jpeg
+    ...                    # Visuels maillots (12 fichiers)
+  favicon.svg
 ```
 
-## Git And Vercel Flow
+## Ajouter un nouveau pays à la collection
 
-```bash
-git init -b main
-git add .
-git commit -m "Prepare Heritages client demo"
-git remote add origin <YOUR_GITHUB_REPO_URL>
-git push -u origin main
+**1 — Ajouter l'image du maillot**
+
+Déposer le fichier dans `public/collection/` :
+
+```
+public/collection/senegal.jpeg
 ```
 
-Then import the GitHub repository in Vercel.
+Formats acceptés : `.jpeg`, `.jpg`, `.png` — recommandé ≥ 800×800 px, fond neutre.
 
+**2 — Déclarer le pays dans `src/data/countries.js`**
+
+```js
+export const countries = [
+  // ... pays existants ...
+  {
+    id: "senegal",          // identifiant unique kebab-case
+    name: "Sénégal",        // nom affiché (avec accents)
+    flag: "🇸🇳",            // emoji drapeau
+    code: "221",            // indicatif téléphonique (pour l'URL WhatsApp)
+    image: "/collection/senegal.jpeg",
+  },
+]
+```
+
+C'est tout. Le pays apparaît automatiquement dans :
+- Le menu déroulant du Configurateur
+- La liste "Pays de la collection" du Footer
+
+**Remarque** : les noms de fichiers avec espaces fonctionnent dans `<img src>` mais il est préférable d'utiliser des tirets (`cote-divoire.jpeg` plutôt que `cote divoire.jpeg`).
+
+## Fonctionnalités
+
+- **Hero** : sticky scroll mask — le mot HÉRITAGES se révèle en masque SVG au scroll (maskSize 0% → 110%), overlay blanc, parallaxe, collapse à la sortie
+- **Configurateur** : choix pays, ville libre, style, couleur, taille, personnalisation libre — validation inline, modale de confirmation, commande WhatsApp
+- **Panier** : persisté via `localStorage`, badge compteur dans le Header, tiroir latéral
+- **Smooth scroll** : Lenis actif sur desktop (≥768px), scroll natif sur mobile/iOS Safari
+- **Responsive** : mobile-first, breakpoints `sm` / `md` / `lg`
+
+## Commande via WhatsApp
+
+Le Configurateur génère un récapitulatif texte envoyé via `https://wa.me/?text=...`. Pour pointer vers un numéro précis, remplacer le lien dans `CartDrawer.jsx` :
+
+```js
+const whatsappUrl = `https://wa.me/212XXXXXXXXX?text=${encodeURIComponent(whatsappText)}`
+```

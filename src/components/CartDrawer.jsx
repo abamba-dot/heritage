@@ -18,7 +18,7 @@ export default function CartDrawer() {
 
     const lines = items.flatMap((item, index) => [
       `${index + 1}. ${item.title}`,
-      `Pays / ville: ${item.country} / ${item.city}`,
+      `Pays : ${item.country}${item.city ? ` / ${item.city}` : ''}`,
       `Style: ${item.style} | Couleur: ${item.color} | Taille: ${item.size}`,
       `Quantité: ${item.quantity}`,
       item.personalizations.length
@@ -29,7 +29,7 @@ export default function CartDrawer() {
     return `Bonjour HÉRITAGES, je souhaite commander:\n\n${lines.join('\n')}`
   }, [items])
 
-  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(whatsappText)}`
+  const whatsappUrl = `https://wa.me/212781636843?text=${encodeURIComponent(whatsappText)}`
 
   return (
     <>
@@ -101,7 +101,7 @@ export default function CartDrawer() {
                         {item.title}
                       </h3>
                       <p className="mt-1 font-inter text-xs uppercase tracking-[0.18em] text-white/45">
-                        {item.country} / {item.city}
+                        {item.country}{item.city ? ` / ${item.city}` : ''}
                       </p>
                     </div>
                     <button

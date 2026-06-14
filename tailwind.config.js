@@ -7,6 +7,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
+        block: ['College Block', 'Bebas Neue', 'Impact', 'sans-serif'],
         cinzel: ['Cinzel', 'serif'],
         inter: ['Inter', 'sans-serif'],
       },

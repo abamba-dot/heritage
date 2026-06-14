@@ -75,6 +75,8 @@ export default function Hero() {
       <div className="exitWrapper overflow-clip">
         <div className="scroller h-[300vh]">
           <div className="sticky relative top-0 h-screen w-full overflow-hidden bg-[#f1eee7]">
+
+            {/* Fond plein écran — lookbook 6 modèles */}
             <img
               className="bgImage absolute inset-0 h-full w-full object-cover object-center"
               src={heroImage}
@@ -84,15 +86,17 @@ export default function Hero() {
               decoding="sync"
             />
 
+            {/* Voile blanc : opacity 0 → 0.8 au scroll */}
             <div className="overlay absolute inset-0 bg-white opacity-0" />
 
+            {/* Masque texte HÉRITAGES : maskSize 0% → 110% au scroll */}
             <div
               className="mask absolute inset-0 z-10 overflow-hidden"
               style={{
                 maskImage: titleMask,
                 WebkitMaskImage: titleMask,
-                maskSize: '5%',
-                WebkitMaskSize: '5%',
+                maskSize: '0%',
+                WebkitMaskSize: '0%',
                 maskRepeat: 'no-repeat',
                 WebkitMaskRepeat: 'no-repeat',
                 maskPosition: 'center',
@@ -109,14 +113,41 @@ export default function Hero() {
               />
             </div>
 
-            <div className="pointer-events-none absolute inset-x-0 top-1/2 z-20 flex translate-y-[clamp(4.2rem,7vw,8rem)] justify-center px-6">
-              <p className="font-inter text-[10px] font-medium uppercase tracking-[0.55em] text-[#0D0D0D]/60 md:text-xs">
-                EVERY CITY HAS A STORY
+            {/* Tagline + flèche scroll — fixés en bas du viewport */}
+            <div className="pointer-events-none absolute inset-x-0 bottom-10 z-20 flex flex-col items-center gap-4">
+              <p className="font-inter text-[10px] font-medium uppercase tracking-[0.55em] text-[#F5F0E1] md:text-[11px]">
+                Every City Has A Story
               </p>
+              <ScrollArrow />
             </div>
+
           </div>
         </div>
       </div>
     </section>
+  )
+}
+
+function ScrollArrow() {
+  return (
+    <div
+      className="animate-bounce"
+      style={{ animationDuration: '1.4s', animationTimingFunction: 'cubic-bezier(0.4,0,0.6,1)' }}
+    >
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#F5F0E1"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <polyline points="19 12 12 19 5 12" />
+      </svg>
+    </div>
   )
 }

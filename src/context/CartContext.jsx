@@ -28,7 +28,7 @@ export function CartProvider({ children }) {
     [items]
   )
 
-  const addItem = (item) => {
+  const addItem = (item, options = {}) => {
     setItems((currentItems) => {
       const existing = currentItems.find((currentItem) => currentItem.signature === item.signature)
 
@@ -49,7 +49,9 @@ export function CartProvider({ children }) {
         },
       ]
     })
-    setIsCartOpen(true)
+    if (options.openCart !== false) {
+      setIsCartOpen(true)
+    }
   }
 
   const removeItem = (id) => {

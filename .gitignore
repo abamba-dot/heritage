@@ -4,6 +4,9 @@ node_modules/
 # Production build
 dist/
 
+# Duplicate local asset staging; deployed assets live in public/collection
+/collection/
+
 # Local env
 .env
 .env.*

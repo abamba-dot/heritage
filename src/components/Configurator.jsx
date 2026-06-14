@@ -1,549 +1,867 @@
-import { useState, useMemo } from 'react'
-import { useTheme } from '../context/ThemeContext'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { AnimatePresence, LayoutGroup, motion, useInView } from 'framer-motion'
+import { gsap } from 'gsap'
 import { useCart } from '../context/CartContext'
-import { cities } from '../data/cities'
-import { worldCountries } from '../data/worldCountries'
-
-const SHIRT_COLORS = [
-  { id: 'or', label: 'Or', hex: '#D4AF37' },
-  { id: 'noir', label: 'Noir', hex: '#0D0D0D' },
-  { id: 'blanc', label: 'Blanc', hex: '#FFFFFF' },
-  { id: 'vert', label: 'Vert', hex: '#1E4D2B' },
-]
+import { countries } from '../data/countries'
 
 const SIZES = ['S', 'M', 'L', 'XL', 'XXL']
+const WHATSAPP_NUMBER = '212781636843'
 
-const CITY_COUNTRY_CODES = {
-  "CÔTE D'IVOIRE": 'CI',
-  MAROC: 'MA',
-  GABON: 'GA',
+// ─── Breakpoint hook ─────────────────────────────────────────────────────────
+function useIsMobile() {
+  const [mobile, setMobile] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1023px)')
+    const fn = (e) => setMobile(e.matches)
+    mq.addEventListener('change', fn)
+    return () => mq.removeEventListener('change', fn)
+  }, [])
+  return mobile
 }
 
-/**
- * Returns a dark or light foreground color for readability
- * depending on the luminance of the given hex background.
- */
-function getContrastColor(hex) {
-  const clean = hex.replace('#', '')
-  const r = parseInt(clean.substring(0, 2), 16) || 0
-  const g = parseInt(clean.substring(2, 4), 16) || 0
-  const b = parseInt(clean.substring(4, 6), 16) || 0
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-  return luminance > 0.5 ? '#0D0D0D' : '#F5F0E1'
-}
-
+// ─── Root ─────────────────────────────────────────────────────────────────────
 export default function Configurator() {
-  const { currentCity, setCurrentCity } = useTheme()
-  const { addItem } = useCart()
+  const { addItem, openCart } = useCart()
+  const isMobile = useIsMobile()
+  const [confirmation, setConfirmation] = useState(null)
 
-  const [selectedCountryCode, setSelectedCountryCode] = useState(
-    CITY_COUNTRY_CODES[currentCity.country] ?? 'CI'
-  )
-  const [selectedCityName, setSelectedCityName] = useState(currentCity.name)
-  const [style, setStyle] = useState('homme')
-  const [color, setColor] = useState(SHIRT_COLORS[0])
-  const [size, setSize] = useState('M')
-  const [hasCustomRequest, setHasCustomRequest] = useState(false)
-  const [customRequests, setCustomRequests] = useState([''])
+  const handleAddToCart = ({ selectedCountry, size, hasCustomRequest, customRequest }) => {
+    const customization =
+      hasCustomRequest && customRequest.trim()
+        ? ` — Personnalisation : ${customRequest.trim()}`
+        : ''
+    const recap = `${selectedCountry.flag} HÉRITAGES ${selectedCountry.name} — Taille ${size}${customization}`
 
-  const theme = currentCity.theme
-  const accent = theme.accent
-  const textColor = theme.textOnBg
-  const bgColor = theme.background
-  const ctaTextColor = useMemo(() => getContrastColor(accent), [accent])
-  const selectedCountryName = useMemo(() => {
-    return worldCountries.find((country) => country.code === selectedCountryCode)?.name ?? selectedCountryCode
-  }, [selectedCountryCode])
-  const citySuggestions = useMemo(
-    () => cities.map((city) => `${city.name} — ${city.country}`),
-    []
-  )
-
-  const handleCountryChange = (e) => {
-    const countryCode = e.target.value
-    const heritageCity = cities.find((city) => CITY_COUNTRY_CODES[city.country] === countryCode)
-
-    setSelectedCountryCode(countryCode)
-
-    if (heritageCity) {
-      setSelectedCityName(heritageCity.name)
-      setCurrentCity(heritageCity)
-    } else {
-      setSelectedCityName('')
-    }
-  }
-
-  const handleCityChange = (e) => {
-    const value = e.target.value
-    const cleanCityName = value.split(' — ')[0].trim()
-    const heritageCity = cities.find(
-      (city) => city.name.toLowerCase() === cleanCityName.toLowerCase()
-    )
-
-    setSelectedCityName(cleanCityName)
-
-    if (heritageCity) {
-      setSelectedCountryCode(CITY_COUNTRY_CODES[heritageCity.country] ?? selectedCountryCode)
-      setCurrentCity(heritageCity)
-    }
-  }
-
-  const buildCartItem = () => {
-    const styleLabel = style === 'homme' ? 'Homme' : 'Femme'
-    const personalizations = customRequests
-      .map((request) => request.trim())
-      .filter(Boolean)
-    const cityLabel = selectedCityName.trim() || 'Ville à préciser'
-
-    return {
-      title: `HÉRITAGES ${cityLabel}`,
-      country: selectedCountryName,
-      city: cityLabel,
-      style: styleLabel,
-      color: color.label,
-      colorHex: color.hex,
-      size,
-      personalizations: hasCustomRequest ? personalizations : [],
-      signature: JSON.stringify({
-        country: selectedCountryName,
-        city: cityLabel,
-        style: styleLabel,
-        color: color.label,
+    addItem(
+      {
+        title: `HÉRITAGES ${selectedCountry.name}`,
+        country: `${selectedCountry.flag} ${selectedCountry.name} +${selectedCountry.code}`,
+        city: '',
+        style: 'World Cup Series',
+        color: 'Collection officielle',
+        colorHex: '#D4AF37',
         size,
-        personalizations: hasCustomRequest ? personalizations : [],
-      }),
-    }
-  }
-
-  const handleAddToCart = () => {
-    addItem(buildCartItem())
-  }
-
-  const updateCustomRequest = (index, value) => {
-    setCustomRequests((requests) =>
-      requests.map((request, itemIndex) => (itemIndex === index ? value : request))
+        personalizations:
+          hasCustomRequest && customRequest.trim() ? [customRequest.trim()] : [],
+        image: selectedCountry.image,
+        flag: selectedCountry.flag,
+        signature: JSON.stringify({ country: selectedCountry.id, size }),
+      },
+      { openCart: false }
     )
+    setConfirmation(recap)
   }
 
-  const addCustomRequest = (value = '') => {
-    setHasCustomRequest(true)
-    setCustomRequests((requests) => [...requests, value])
-  }
-
-  const removeCustomRequest = (index) => {
-    setCustomRequests((requests) => {
-      const next = requests.filter((_, itemIndex) => itemIndex !== index)
-      return next.length ? next : ['']
-    })
-  }
-
-  const silhouetteOnRight = currentCity.silhouettePosition === 'right'
+  const whatsappUrl = confirmation
+    ? `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+        `Bonjour HÉRITAGES, je souhaite commander :\n\n${confirmation}`
+      )}`
+    : '#'
 
   return (
-    <section
-      id="configurateur"
-      className="relative min-h-screen overflow-hidden scroll-mt-[90px] px-5 py-20 pt-28 transition-colors duration-[400ms] ease-in-out sm:px-6 md:pt-36 lg:pt-40"
-      style={{
-        backgroundColor: bgColor,
-        color: textColor,
-      }}
-    >
-      {/* Monument silhouette watermark */}
-      <img
-        src={currentCity.assets.monumentSilhouette}
-        alt=""
-        aria-hidden="true"
-        className={`
-          pointer-events-none absolute top-1/2 h-[70vh] max-w-none -translate-y-1/2
-          select-none opacity-[0.12] transition-all duration-[400ms]
-          ${silhouetteOnRight ? '-right-[12%] rotate-3' : '-left-[12%] -rotate-3'}
-        `}
-        style={{
-          color: accent,
-          filter: `drop-shadow(0 0 30px ${accent})`,
-        }}
-      />
+    <>
+      <section id="configurateur" className="scroll-mt-16">
+        {isMobile ? (
+          <MobileWizard onAddToCart={handleAddToCart} />
+        ) : (
+          <DesktopLayout onAddToCart={handleAddToCart} />
+        )}
+      </section>
 
-      <div className="relative z-10 mx-auto w-full max-w-[480px]">
-        {/* Header */}
-        <header className="mb-10 text-center">
-          <p className="font-inter mb-3 text-[10px] font-medium uppercase tracking-[0.35em] opacity-60">
-            Configurateur
-          </p>
-          <h2 className="font-cinzel text-2xl font-bold tracking-tight md:text-4xl">
-            Personnalise ton t-shirt
-          </h2>
-          <p className="font-inter mt-3 text-sm opacity-70">
-            Crée une pièce unique à ton image.
-          </p>
-        </header>
-
-        {/* Step 1 — Country + City */}
-        <Step title="Étape 1 — Choisis ton pays et ta ville" accent={accent}>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <SelectField
-              label="Pays"
-              value={selectedCountryCode}
-              onChange={handleCountryChange}
-              accent={accent}
-              textColor={textColor}
+      {/* Confirmation modal — shared */}
+      <AnimatePresence>
+        {confirmation && (
+          <motion.div
+            className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-5 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 22 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 12 }}
+              className="w-full max-w-md border border-white/10 bg-[#0D0D0D] p-6 text-[#F5F0E1] shadow-2xl"
             >
-              {worldCountries.map((country) => (
-                <option key={country.code} value={country.code} className="bg-[#0D0D0D] text-[#F5F0E1]">
-                  {country.name}
-                </option>
-              ))}
-            </SelectField>
-
-            <TextField
-              label="Ville"
-              value={selectedCityName}
-              onChange={handleCityChange}
-              accent={accent}
-              textColor={textColor}
-              list="heritage-city-suggestions"
-              placeholder="Ex: Dakar, Paris, Tokyo..."
-            />
-            <datalist id="heritage-city-suggestions">
-              {citySuggestions.map((suggestion) => (
-                <option key={suggestion} value={suggestion} />
-              ))}
-            </datalist>
-          </div>
-          <p className="font-inter mt-3 text-xs leading-relaxed opacity-60">
-            Tous les pays sont disponibles. Pour la ville, le champ est libre: le client peut écrire n'importe quelle ville du monde.
-          </p>
-        </Step>
-
-        {/* Step 2 — Style */}
-        <Step title="Étape 2 — Choisis le style" accent={accent}>
-          <div className="grid grid-cols-2 gap-3">
-            <StyleButton
-              label="Homme"
-              selected={style === 'homme'}
-              onClick={() => setStyle('homme')}
-              icon={<IconMale />}
-              accent={accent}
-              textColor={textColor}
-            />
-            <StyleButton
-              label="Femme"
-              selected={style === 'femme'}
-              onClick={() => setStyle('femme')}
-              icon={<IconFemale />}
-              accent={accent}
-              textColor={textColor}
-            />
-          </div>
-        </Step>
-
-        {/* Step 3 — Color */}
-        <Step title="Étape 3 — Choisis la couleur" accent={accent}>
-          <div className="flex flex-wrap gap-5">
-            {SHIRT_COLORS.map((c) => {
-              const selected = color.id === c.id
-              return (
+              <p className="font-inter text-[10px] uppercase tracking-[0.35em] text-[#D4AF37]">
+                Ajouté au panier
+              </p>
+              <h3 className="mt-2 font-block text-2xl font-bold">Récapitulatif</h3>
+              <p className="mt-4 font-inter text-sm leading-relaxed text-[#F5F0E1]/75">
+                {confirmation}
+              </p>
+              <div className="mt-6 grid gap-3">
                 <button
-                  key={c.id}
                   type="button"
-                  onClick={() => setColor(c)}
-                  aria-label={`Couleur ${c.label}`}
-                  aria-pressed={selected}
-                  className={`
-                    relative h-14 w-14 rounded-full transition-all duration-[400ms]
-                    ${selected ? 'scale-110' : 'hover:scale-105'}
-                  `}
-                  style={{
-                    backgroundColor: c.hex,
-                    boxShadow: selected
-                      ? `0 0 0 3px ${bgColor}, 0 0 0 5px ${accent}`
-                      : `0 0 0 1px ${textColor}15`,
-                  }}
+                  onClick={() => { setConfirmation(null); openCart() }}
+                  className="bg-[#D4AF37] py-3 font-cinzel text-xs font-black uppercase tracking-[0.25em] text-[#0D0D0D] transition-opacity hover:opacity-90"
                 >
-                  {selected && (
-                    <span
-                      className="absolute inset-0 rounded-full"
-                      style={{
-                        boxShadow: `inset 0 0 0 2px ${getContrastColor(c.hex)}30`,
-                      }}
+                  Voir le panier
+                </button>
+                <a
+                  href={whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block bg-[#25D366] py-3 text-center font-cinzel text-xs font-bold uppercase tracking-[0.2em] text-[#0D0D0D] transition-opacity hover:opacity-90"
+                >
+                  Commander via WhatsApp
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setConfirmation(null)}
+                  className="border border-white/15 py-3 font-inter text-xs uppercase tracking-[0.2em] text-[#F5F0E1]/55 transition-colors hover:border-white/30 hover:text-[#F5F0E1]"
+                >
+                  Continuer mes achats
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  )
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MOBILE — Stepper Wizard
+// ══════════════════════════════════════════════════════════════════════════════
+const STEP_LABELS = ['01 — PAYS', '02 — TAILLE', '03 — PERSONNALISATION']
+
+const stepVariants = {
+  enter: (dir) => ({ x: dir > 0 ? 64 : -64, opacity: 0 }),
+  center: { x: 0, opacity: 1, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } },
+  exit: (dir) => ({
+    x: dir > 0 ? -64 : 64,
+    opacity: 0,
+    transition: { duration: 0.25, ease: [0.22, 1, 0.36, 1] },
+  }),
+}
+
+function MobileWizard({ onAddToCart }) {
+  const [step, setStep] = useState(1)
+  const [direction, setDirection] = useState(1)
+  const [countryId, setCountryId] = useState('')
+  const [size, setSize] = useState('')
+  const [hasCustomRequest, setHasCustomRequest] = useState(false)
+  const [customRequest, setCustomRequest] = useState('')
+  const [previewCountry, setPreviewCountry] = useState(null)
+  const [pendingStep, setPendingStep] = useState(null)
+
+  const touchStartX = useRef(null)
+  const touchStartY = useRef(null)
+
+  const selectedCountry = useMemo(
+    () => countries.find((c) => c.id === countryId) ?? null,
+    [countryId]
+  )
+
+  const goTo = (n, dir) => { setDirection(dir); setStep(n) }
+  const goNext = () => goTo(Math.min(3, step + 1), 1)
+  const goPrev = () => goTo(Math.max(1, step - 1), -1)
+
+  const onTouchStart = (e) => {
+    touchStartX.current = e.targetTouches[0].clientX
+    touchStartY.current = e.targetTouches[0].clientY
+  }
+  const onTouchEnd = (e) => {
+    if (touchStartX.current === null) return
+    const dx = touchStartX.current - e.changedTouches[0].clientX
+    const dy = Math.abs(touchStartY.current - e.changedTouches[0].clientY)
+    if (Math.abs(dx) > 52 && Math.abs(dx) > dy * 1.5) {
+      dx > 0 ? goNext() : goPrev()
+    }
+    touchStartX.current = null
+  }
+
+  const handleSubmit = () => {
+    if (!selectedCountry || !size) return
+    onAddToCart({ selectedCountry, size, hasCustomRequest, customRequest })
+    setStep(1)
+    setDirection(1)
+    setCountryId('')
+    setSize('')
+    setHasCustomRequest(false)
+    setCustomRequest('')
+  }
+
+  return (
+    <div
+      className="relative min-h-screen bg-[#0D0D0D] pt-16 text-[#F5F0E1]"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* Progress bar — sticky below header */}
+      <div className="sticky top-16 z-40 border-b border-[#1A1A1A] bg-[#0D0D0D] px-5 pb-3 pt-4">
+        <div className="flex items-center gap-2">
+          <div className="w-7 shrink-0">
+            <AnimatePresence>
+              {step > 1 && (
+                <motion.button
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  type="button"
+                  onClick={goPrev}
+                  className="flex h-7 w-7 items-center justify-center text-[#F5F0E1]/55 hover:text-[#D4AF37]"
+                  aria-label="Étape précédente"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
+                  </svg>
+                </motion.button>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <LayoutGroup id="mob-stepper">
+            <div className="flex flex-1 gap-1.5">
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="relative h-[2px] flex-1 overflow-hidden bg-[#2A2A2A]">
+                  {step === n && (
+                    <motion.div
+                      layoutId="step-active-bar"
+                      className="absolute inset-0 bg-[#D4AF37]"
+                      transition={{ type: 'spring', stiffness: 380, damping: 32 }}
                     />
                   )}
-                </button>
-              )
-            })}
-          </div>
-          <p className="font-inter mt-3 text-xs opacity-60">{color.label}</p>
-        </Step>
-
-        {/* Step 4 — Size */}
-        <Step title="Étape 4 — Choisis la taille" accent={accent}>
-          <div className="flex flex-wrap gap-2">
-            {SIZES.map((s) => {
-              const selected = size === s
-              return (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setSize(s)}
-                  aria-pressed={selected}
-                  className="flex h-12 min-w-[3rem] flex-1 items-center justify-center border font-cinzel text-sm font-bold transition-all duration-[400ms] hover:opacity-90"
-                  style={{
-                    borderColor: selected ? accent : `${textColor}20`,
-                    color: selected ? accent : textColor,
-                    backgroundColor: selected ? `${accent}14` : 'transparent',
-                  }}
-                >
-                  {s}
-                </button>
-              )
-            })}
-          </div>
-        </Step>
-
-        {/* Step 5 — Free personalization */}
-        <Step title="Étape 5 — Personnalisation libre" accent={accent}>
-          <label
-            className="flex cursor-pointer items-start gap-3 border p-4 font-inter text-sm transition-colors duration-[400ms]"
-            style={{
-              borderColor: hasCustomRequest ? accent : `${textColor}20`,
-              backgroundColor: hasCustomRequest ? `${accent}12` : 'transparent',
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={hasCustomRequest}
-              onChange={(e) => {
-                setHasCustomRequest(e.target.checked)
-                if (e.target.checked && customRequests.length === 0) {
-                  setCustomRequests([''])
-                }
-              }}
-              className="mt-1 h-4 w-4 accent-current"
-              style={{ color: accent }}
-            />
-            <span>
-              <span className="block font-medium">Autre personnalisation</span>
-              <span className="mt-1 block text-xs opacity-60">
-                Coche cette case pour écrire une ou plusieurs demandes: nom, numéro, phrase, broderie, placement, packaging ou autre idée.
-              </span>
-            </span>
-          </label>
-
-          {hasCustomRequest && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {[
-                'Nom au dos: ',
-                'Numéro préféré: ',
-                'Phrase personnalisée: ',
-                'Placement spécial: ',
-                'Couleur ou finition spéciale: ',
-                'Autre idée: ',
-              ].map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => addCustomRequest(preset)}
-                  className="border px-3 py-2 font-inter text-[10px] font-medium uppercase tracking-[0.16em] transition-colors duration-300 hover:opacity-90"
-                  style={{
-                    borderColor: `${accent}55`,
-                    color: accent,
-                    backgroundColor: `${accent}0F`,
-                  }}
-                >
-                  + {preset.replace(': ', '')}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {hasCustomRequest && (
-            <div className="mt-4 space-y-3">
-              {customRequests.map((request, index) => (
-                <div key={index} className="grid gap-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-inter text-[10px] font-medium uppercase tracking-[0.2em] opacity-55">
-                      Demande {index + 1}
-                    </p>
-                    {customRequests.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeCustomRequest(index)}
-                        className="font-inter text-[10px] uppercase tracking-[0.18em] opacity-60 transition-opacity hover:opacity-100"
-                      >
-                        Retirer
-                      </button>
-                    )}
-                  </div>
-                  <textarea
-                    value={request}
-                    onChange={(e) => updateCustomRequest(index, e.target.value)}
-                    rows={3}
-                    maxLength={220}
-                    placeholder="Ex: Ajouter le nom AMINA au dos, numéro 10, petit texte sous le col..."
-                    className="w-full resize-none rounded-none border bg-transparent px-4 py-3.5 font-inter text-sm outline-none transition-colors duration-[400ms] placeholder:opacity-45"
-                    style={{
-                      borderColor: `${textColor}30`,
-                      color: textColor,
-                    }}
-                  />
-                  <p className="font-inter text-right text-[10px] opacity-50">
-                    {request.length}/220 caractères
-                  </p>
+                  {step > n && <div className="absolute inset-0 bg-[#D4AF37]/35" />}
                 </div>
               ))}
-
-              <button
-                type="button"
-                onClick={() => addCustomRequest()}
-                className="w-full border border-dashed py-3 font-cinzel text-[11px] font-bold uppercase tracking-[0.2em] transition-colors duration-300 hover:opacity-90"
-                style={{
-                  borderColor: `${accent}70`,
-                  color: accent,
-                }}
-              >
-                Ajouter une autre personnalisation
-              </button>
             </div>
-          )}
-        </Step>
+          </LayoutGroup>
 
-        {/* Final CTA */}
-        <button
-          type="button"
-          onClick={handleAddToCart}
-          className="mt-10 w-full py-4 font-cinzel text-xs font-bold uppercase tracking-[0.25em] transition-all duration-[400ms] hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2"
-          style={{
-            backgroundColor: accent,
-            color: ctaTextColor,
-            '--tw-ring-color': accent,
-            '--tw-ring-offset-color': bgColor,
-          }}
-        >
-          Ajouter au panier
-        </button>
+          <div className="w-7 shrink-0" />
+        </div>
+        <p className="mt-2 text-center font-inter text-[10px] font-bold uppercase tracking-[0.4em] text-[#D4AF37]">
+          {STEP_LABELS[step - 1]}
+        </p>
       </div>
-    </section>
-  )
-}
 
-function Step({ title, children, accent }) {
-  return (
-    <div className="mb-8">
-      <h3
-        className="font-cinzel mb-3 text-xs font-bold uppercase tracking-[0.2em]"
-        style={{ color: accent }}
+      {/* Step content */}
+      <div className="relative overflow-hidden">
+        <AnimatePresence custom={direction} mode="wait">
+          <motion.div
+            key={step}
+            custom={direction}
+            variants={stepVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+          >
+            {step === 1 && (
+              <MobileStep1
+                selectedCountryId={countryId}
+                onSelectCountry={setPreviewCountry}
+              />
+            )}
+            {step === 2 && (
+              <MobileStep2
+                selectedCountry={selectedCountry}
+                size={size}
+                onSelectSize={setSize}
+                onBack={goPrev}
+                onNext={goNext}
+              />
+            )}
+            {step === 3 && (
+              <MobileStep3
+                selectedCountry={selectedCountry}
+                size={size}
+                hasCustomRequest={hasCustomRequest}
+                setHasCustomRequest={setHasCustomRequest}
+                customRequest={customRequest}
+                setCustomRequest={setCustomRequest}
+                onSubmit={handleSubmit}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* Country preview overlay — slides up from bottom */}
+      <AnimatePresence
+        onExitComplete={() => {
+          if (pendingStep !== null) {
+            goTo(pendingStep, 1)
+            setPendingStep(null)
+          }
+        }}
       >
-        {title}
-      </h3>
-      {children}
+        {previewCountry && (
+          <motion.div
+            className="fixed inset-0 z-[150] flex flex-col bg-[#0D0D0D]"
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ duration: 0.48, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <div className="relative min-h-0 flex-1">
+              <img
+                src={previewCountry.image}
+                alt={previewCountry.name}
+                className="absolute inset-0 h-full w-full object-cover"
+                loading="lazy"
+              />
+              <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#0D0D0D]" />
+            </div>
+            <div className="border-t border-[#D4AF37]/25 bg-[#0D0D0D] px-6 py-7">
+              <p className="font-inter text-[9px] font-bold uppercase tracking-[0.42em] text-[#D4AF37]">
+                World Cup Series
+              </p>
+              <h2 className="mt-1 font-block text-3xl font-black text-[#F5F0E1]">
+                {previewCountry.name.toUpperCase()}
+              </h2>
+              <p className="mt-1 font-inter text-sm text-[#D4AF37]/72">+{previewCountry.code}</p>
+              <div className="mt-5 space-y-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCountryId(previewCountry.id)
+                    setPendingStep(2)
+                    setPreviewCountry(null)
+                  }}
+                  className="w-full bg-[#D4AF37] py-4 font-cinzel text-sm font-black uppercase tracking-[0.22em] text-[#0D0D0D] active:opacity-80"
+                >
+                  Confirmer ce pays
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewCountry(null)}
+                  className="w-full border border-[#F5F0E1]/20 py-3 font-inter text-xs uppercase tracking-[0.22em] text-[#F5F0E1]/52"
+                >
+                  Changer
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
 
-function SelectField({ label, value, onChange, children, accent, textColor }) {
+function MobileStep1({ selectedCountryId, onSelectCountry }) {
   return (
-    <label className="block">
-      <span className="font-inter mb-2 block text-[10px] font-medium uppercase tracking-[0.24em] opacity-55">
-        {label}
-      </span>
-      <span className="relative block">
-        <select
-          value={value}
-          onChange={onChange}
-          className="w-full appearance-none rounded-none border bg-transparent px-4 py-3.5 pr-10 font-inter text-sm outline-none transition-colors duration-[400ms] [color-scheme:dark]"
-          style={{
-            borderColor: `${textColor}30`,
-            color: textColor,
-            backgroundColor: 'transparent',
-          }}
-        >
-          {children}
-        </select>
-        <span
-          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
-          style={{ color: accent }}
-        >
-          <IconChevron />
-        </span>
-      </span>
-    </label>
+    <div className="px-5 pb-10 pt-6">
+      <p className="font-inter text-[9px] font-bold uppercase tracking-[0.45em] text-[#D4AF37]/65">
+        Étape 1 sur 3
+      </p>
+      <h2 className="mt-2 font-block text-2xl font-black text-[#F5F0E1]">
+        Choisis ton pays
+      </h2>
+      <p className="mt-1 font-inter text-xs text-[#F5F0E1]/40">
+        Appuie sur un pays pour voir le maillot.
+      </p>
+      <div className="mt-5 grid grid-cols-2 gap-2">
+        {countries.map((country) => {
+          const active = selectedCountryId === country.id
+          return (
+            <button
+              key={country.id}
+              type="button"
+              onClick={() => onSelectCountry(country)}
+              className="relative overflow-hidden p-4 text-left active:scale-[0.97]"
+              style={{
+                border: `1px solid ${active ? '#D4AF37' : '#222'}`,
+                backgroundColor: active ? '#1A1500' : '#161616',
+              }}
+            >
+              {active && (
+                <motion.div
+                  layoutId="m-country-ring"
+                  className="absolute inset-0 border border-[#D4AF37]"
+                  transition={{ duration: 0.2 }}
+                />
+              )}
+              <span className="relative z-10 block text-3xl leading-none">{country.flag}</span>
+              <span
+                className="relative z-10 mt-2.5 block font-inter text-[11px] leading-snug"
+                style={{ color: active ? '#D4AF37' : 'rgba(245,240,225,0.52)' }}
+              >
+                {country.name}
+              </span>
+              {active && (
+                <span className="relative z-10 mt-0.5 block font-inter text-[9px] text-[#D4AF37]/55">
+                  ✓ sélectionné
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
-function TextField({ label, value, onChange, accent, textColor, list, placeholder }) {
+function MobileStep2({ selectedCountry, size, onSelectSize, onBack, onNext }) {
   return (
-    <label className="block">
-      <span className="font-inter mb-2 block text-[10px] font-medium uppercase tracking-[0.24em] opacity-55">
-        {label}
-      </span>
-      <span className="relative block">
-        <input
-          type="text"
-          value={value}
-          onChange={onChange}
-          list={list}
-          placeholder={placeholder}
-          className="w-full rounded-none border bg-transparent px-4 py-3.5 pr-10 font-inter text-sm outline-none transition-colors duration-[400ms] placeholder:opacity-45"
-          style={{
-            borderColor: `${textColor}30`,
-            color: textColor,
-          }}
-        />
-        <span
-          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] uppercase tracking-[0.16em]"
-          style={{ color: accent }}
+    <div className="px-5 pb-32 pt-6">
+      {selectedCountry && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="mb-5 flex items-center gap-2 border border-[#D4AF37] bg-[#1A1500] px-3 py-2 active:opacity-70"
         >
-          libre
-        </span>
-      </span>
-    </label>
+          <span className="text-lg leading-none">{selectedCountry.flag}</span>
+          <span className="font-inter text-xs text-[#D4AF37]">{selectedCountry.name}</span>
+          <span className="ml-1 font-inter text-[10px] text-[#D4AF37]/45">modifier ↑</span>
+        </button>
+      )}
+      <p className="font-inter text-[9px] font-bold uppercase tracking-[0.45em] text-[#D4AF37]/65">
+        Étape 2 sur 3
+      </p>
+      <h2 className="mt-2 font-block text-2xl font-black text-[#F5F0E1]">
+        Choisis ta taille
+      </h2>
+      <div className="mt-5 grid grid-cols-3 gap-2 sm:grid-cols-5">
+        {SIZES.map((s) => {
+          const active = size === s
+          return (
+            <button
+              key={s}
+              type="button"
+              onClick={() => onSelectSize(s)}
+              className="min-h-[64px] font-cinzel text-base font-bold active:scale-95"
+              style={{
+                border: `1px solid ${active ? '#D4AF37' : '#222'}`,
+                color: active ? '#D4AF37' : 'rgba(245,240,225,0.5)',
+                backgroundColor: active ? '#1A1500' : 'transparent',
+              }}
+            >
+              {s}
+            </button>
+          )
+        })}
+      </div>
+
+      <AnimatePresence>
+        {size && (
+          <motion.div
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed inset-x-0 bottom-0 z-30 border-t border-[#1A1A1A] bg-[#0D0D0D] p-4"
+          >
+            <button
+              type="button"
+              onClick={onNext}
+              className="flex w-full items-center justify-center gap-2 bg-[#D4AF37] py-4 font-cinzel text-sm font-black uppercase tracking-[0.25em] text-[#0D0D0D] active:opacity-85"
+            >
+              Suivant
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
+              </svg>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }
 
-function StyleButton({ label, selected, onClick, icon, accent, textColor }) {
+function MobileStep3({
+  selectedCountry, size,
+  hasCustomRequest, setHasCustomRequest,
+  customRequest, setCustomRequest,
+  onSubmit,
+}) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={selected}
-      className="flex items-center justify-center gap-3 border py-3.5 font-inter text-sm font-medium transition-all duration-[400ms] hover:opacity-90"
-      style={{
-        borderColor: selected ? accent : `${textColor}20`,
-        color: selected ? accent : textColor,
-        backgroundColor: selected ? `${accent}14` : 'transparent',
-      }}
+    <div className="px-5 pb-32 pt-6">
+      <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-1 border border-[#D4AF37]/30 bg-[#1A1A1A] px-3 py-2.5">
+        {selectedCountry && (
+          <span className="font-inter text-sm text-[#F5F0E1]/80">
+            {selectedCountry.flag} {selectedCountry.name}
+          </span>
+        )}
+        <span className="text-[#F5F0E1]/22">|</span>
+        <span className="font-inter text-sm text-[#F5F0E1]/80">Taille {size}</span>
+      </div>
+
+      <p className="font-inter text-[9px] font-bold uppercase tracking-[0.45em] text-[#D4AF37]/65">
+        Étape 3 sur 3
+      </p>
+      <h2 className="mt-2 font-block text-2xl font-black text-[#F5F0E1]">
+        Personnalisation
+      </h2>
+
+      <div className="mt-5 space-y-3">
+        <label className="flex cursor-pointer gap-3 border border-[#222] bg-[#161616] p-4">
+          <input
+            type="checkbox"
+            checked={hasCustomRequest}
+            onChange={(e) => setHasCustomRequest(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-[#D4AF37]"
+          />
+          <span>
+            <span className="block font-inter text-sm font-semibold text-[#F5F0E1]">
+              Ajouter une demande spéciale
+            </span>
+            <span className="mt-1 block font-inter text-xs leading-relaxed text-[#F5F0E1]/38">
+              Nom, numéro, broderie, packaging ou autre.
+            </span>
+          </span>
+        </label>
+
+        <AnimatePresence initial={false}>
+          {hasCustomRequest && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              className="overflow-hidden"
+            >
+              <textarea
+                value={customRequest}
+                onChange={(e) => setCustomRequest(e.target.value)}
+                rows={3}
+                placeholder="ex: Nom ATLAS, numéro 10, broderie dorée..."
+                className="w-full resize-none border border-[#D4AF37]/22 bg-[#111] px-4 py-3 font-inter text-sm text-[#F5F0E1] outline-none placeholder:text-[#D4AF37]/28 focus:border-[#D4AF37]/55"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <div className="mt-8 border-l-[3px] border-[#D4AF37] bg-[#1A1A1A] px-4 py-3">
+        <p className="mb-2 font-inter text-[9px] font-bold uppercase tracking-[0.38em] text-[#D4AF37]/50">
+          Récapitulatif
+        </p>
+        {selectedCountry && (
+          <p className="font-inter text-sm text-[#F5F0E1]/75">
+            {selectedCountry.flag} HÉRITAGES {selectedCountry.name}
+          </p>
+        )}
+        <p className="font-inter text-sm text-[#F5F0E1]/75">Taille {size}</p>
+        {hasCustomRequest && customRequest.trim() && (
+          <p className="mt-1.5 font-inter text-xs italic text-[#D4AF37]/65">
+            « {customRequest.trim()} »
+          </p>
+        )}
+      </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#1A1A1A] bg-[#0D0D0D] p-4">
+        <button
+          type="button"
+          onClick={onSubmit}
+          className="flex w-full items-center justify-center gap-3 bg-[#D4AF37] py-4 font-cinzel text-sm font-black uppercase tracking-[0.22em] text-[#0D0D0D] active:opacity-85"
+        >
+          <IconCart />
+          Ajouter au panier
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DESKTOP — Two-column sticky layout
+// ══════════════════════════════════════════════════════════════════════════════
+function DesktopLayout({ onAddToCart }) {
+  const [countryId, setCountryId] = useState('')
+  const [size, setSize] = useState('')
+  const [hasCustomRequest, setHasCustomRequest] = useState(false)
+  const [customRequest, setCustomRequest] = useState('')
+  const [errors, setErrors] = useState({ country: false, size: false })
+
+  const countryGridRef = useRef(null)
+  const sizeRowRef = useRef(null)
+
+  const selectedCountry = useMemo(
+    () => countries.find((c) => c.id === countryId) ?? null,
+    [countryId]
+  )
+
+  const shake = (el) => {
+    if (!el) return
+    gsap.killTweensOf(el)
+    gsap.timeline()
+      .to(el, { x: -8, duration: 0.07, ease: 'power2.out' })
+      .to(el, { x: 8, duration: 0.06 })
+      .to(el, { x: -6, duration: 0.06 })
+      .to(el, { x: 5, duration: 0.06 })
+      .to(el, { x: 0, duration: 0.05, ease: 'power2.out' })
+  }
+
+  const handleAddToCart = () => {
+    const next = { country: !countryId, size: !size }
+    setErrors(next)
+    if (next.country) shake(countryGridRef.current)
+    if (next.size) shake(sizeRowRef.current)
+    if (next.country || next.size) return
+    onAddToCart({ selectedCountry, size, hasCustomRequest, customRequest })
+    setCountryId('')
+    setSize('')
+    setHasCustomRequest(false)
+    setCustomRequest('')
+    setErrors({ country: false, size: false })
+  }
+
+  return (
+    <div className="bg-[#0D0D0D] text-[#F5F0E1] lg:grid lg:grid-cols-[55%_45%]">
+
+      {/* LEFT — sticky image */}
+      <div className="relative">
+        <div className="relative h-[45vh] overflow-hidden bg-[#0D0D0D] lg:sticky lg:top-0 lg:h-screen lg:overflow-visible">
+          <AnimatePresence mode="wait">
+            {selectedCountry ? (
+              <motion.div
+                key={selectedCountry.id}
+                className="absolute inset-0 flex items-center justify-center"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.4 }}
+              >
+                <img
+                  src={selectedCountry.image}
+                  alt={selectedCountry.name}
+                  className="h-full w-full object-contain"
+                  loading="lazy"
+                  decoding="async"
+                />
+                <div className="absolute bottom-6 left-6 right-6 lg:bottom-10 lg:left-10 lg:right-10">
+                  <motion.p
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.18, duration: 0.3 }}
+                    className="font-inter text-[9px] font-bold uppercase tracking-[0.45em] text-[#D4AF37]"
+                  >
+                    World Cup Series
+                  </motion.p>
+                  <motion.h3
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.26, duration: 0.32 }}
+                    className="font-block text-2xl font-black text-[#F5F0E1] lg:text-4xl"
+                  >
+                    {selectedCountry.name.toUpperCase()}
+                  </motion.h3>
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.36 }}
+                    className="mt-1 font-inter text-sm text-[#D4AF37]/75"
+                  >
+                    +{selectedCountry.code}
+                  </motion.p>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="placeholder"
+                className="flex h-full flex-col items-center justify-center"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <span
+                  className="select-none font-cinzel font-black leading-none text-[#D4AF37]"
+                  style={{ fontSize: 'clamp(100px, 18vw, 220px)', opacity: 0.06 }}
+                >
+                  H
+                </span>
+                <p className="mt-4 font-inter text-[10px] uppercase tracking-[0.4em] text-[#F5F0E1]/32">
+                  Sélectionne ton pays
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* RIGHT — form */}
+      <div className="relative bg-[#0F0F0F] px-6 py-14 sm:px-10 lg:px-14 lg:py-20">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(30,77,43,0.2),transparent_55%)]" />
+        <div className="relative mx-auto max-w-[480px]">
+          <p className="font-inter text-[9px] font-bold uppercase tracking-[0.55em] text-[#D4AF37]">
+            Configurateur
+          </p>
+          <h2 className="mt-3 font-block text-[clamp(26px,3.5vw,48px)] font-black leading-tight text-[#F5F0E1]">
+            Personnalise<br />ton t-shirt
+          </h2>
+          <p className="mt-3 font-inter text-sm text-[#F5F0E1]/48">
+            Crée une pièce unique à ton image.
+          </p>
+          <div className="mt-6 h-px bg-[#D4AF37]/22" />
+
+          <div className="mt-10 space-y-12">
+
+            <ConfigStep label="01 — Pays">
+              <div ref={countryGridRef} className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {countries.map((country) => {
+                  const active = countryId === country.id
+                  return (
+                    <button
+                      key={country.id}
+                      type="button"
+                      onClick={() => {
+                        setCountryId(country.id)
+                        setErrors((e) => ({ ...e, country: false }))
+                      }}
+                      className="relative overflow-hidden p-3 text-left transition-transform duration-200 hover:-translate-y-0.5 focus:outline-none"
+                      style={{
+                        border: `1px solid ${active ? '#D4AF37' : errors.country ? '#D46A37' : '#222'}`,
+                        backgroundColor: active ? '#1A1500' : '#161616',
+                      }}
+                    >
+                      {active && (
+                        <motion.div
+                          layoutId="d-country-ring"
+                          className="absolute inset-0 border border-[#D4AF37]"
+                          transition={{ duration: 0.2 }}
+                        />
+                      )}
+                      <span className="relative z-10 block text-2xl leading-none">{country.flag}</span>
+                      <span
+                        className="relative z-10 mt-2 block font-inter text-[10px] leading-snug"
+                        style={{ color: active ? '#D4AF37' : 'rgba(245,240,225,0.52)' }}
+                      >
+                        {country.name}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </ConfigStep>
+
+            <ConfigStep label="02 — Taille">
+              <div ref={sizeRowRef} className="flex flex-wrap gap-2">
+                {SIZES.map((s) => {
+                  const active = size === s
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => {
+                        setSize(s)
+                        setErrors((e) => ({ ...e, size: false }))
+                      }}
+                      className="h-12 min-w-[3rem] flex-1 font-cinzel text-sm font-bold transition-all duration-200 focus:outline-none"
+                      style={{
+                        border: `1px solid ${active ? '#D4AF37' : errors.size ? '#D46A37' : '#222'}`,
+                        color: active ? '#D4AF37' : 'rgba(245,240,225,0.48)',
+                        backgroundColor: active ? '#1A1500' : 'transparent',
+                      }}
+                    >
+                      {s}
+                    </button>
+                  )
+                })}
+              </div>
+            </ConfigStep>
+
+            <ConfigStep label="03 — Personnalisation">
+              <label className="flex cursor-pointer gap-3 border border-[#222] bg-[#161616] p-4 transition-colors hover:border-[#2E2E2E]">
+                <input
+                  type="checkbox"
+                  checked={hasCustomRequest}
+                  onChange={(e) => setHasCustomRequest(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-[#D4AF37]"
+                />
+                <span>
+                  <span className="block font-inter text-sm font-semibold text-[#F5F0E1]">
+                    Ajouter une demande spéciale
+                  </span>
+                  <span className="mt-1 block font-inter text-xs leading-relaxed text-[#F5F0E1]/40">
+                    Nom, numéro, phrase, broderie, placement, packaging ou toute autre idée.
+                  </span>
+                </span>
+              </label>
+              <AnimatePresence initial={false}>
+                {hasCustomRequest && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <textarea
+                      value={customRequest}
+                      onChange={(e) => setCustomRequest(e.target.value)}
+                      rows={4}
+                      placeholder="ex: Nom ATLAS au dos, numéro 10, broderie dorée sur la manche..."
+                      className="mt-3 w-full resize-none border border-[#D4AF37]/22 bg-[#111] px-4 py-3.5 font-inter text-sm text-[#F5F0E1] outline-none transition-colors placeholder:text-[#D4AF37]/28 focus:border-[#D4AF37]/52"
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </ConfigStep>
+
+            {/* Live recap */}
+            <div className="border-l-[3px] border-[#D4AF37] bg-[#1A1A1A] px-4 py-3">
+              <p className="mb-1.5 font-inter text-[9px] font-bold uppercase tracking-[0.38em] text-[#D4AF37]/52">
+                Récapitulatif
+              </p>
+              <p className="font-inter text-sm text-[#F5F0E1]/72">
+                <span style={{ color: selectedCountry ? undefined : 'rgba(245,240,225,0.2)' }}>
+                  {selectedCountry ? `${selectedCountry.flag} ${selectedCountry.name}` : '—'}
+                </span>
+                <span className="mx-2" style={{ color: 'rgba(245,240,225,0.18)' }}>·</span>
+                <span style={{ color: size ? undefined : 'rgba(245,240,225,0.2)' }}>
+                  {size ? `Taille ${size}` : '—'}
+                </span>
+              </p>
+            </div>
+
+            <AnimatePresence>
+              {(errors.country || errors.size) && (
+                <motion.p
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="-mt-8 font-inter text-xs text-[#D46A37]"
+                >
+                  Merci de sélectionner un pays et une taille.
+                </motion.p>
+              )}
+            </AnimatePresence>
+
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              className="flex w-full items-center justify-center gap-3 bg-[#D4AF37] py-5 font-cinzel text-sm font-black uppercase tracking-[0.22em] text-[#0D0D0D] transition-all duration-200 hover:bg-[#E8C84A] focus:outline-none focus:ring-2 focus:ring-[#D4AF37] focus:ring-offset-2 focus:ring-offset-[#0D0D0D]"
+            >
+              <IconCart />
+              Ajouter au panier
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Shared ───────────────────────────────────────────────────────────────────
+function ConfigStep({ label, children }) {
+  const ref = useRef(null)
+  const inView = useInView(ref, { once: true, margin: '-50px 0px' })
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 18 }}
+      animate={inView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      className="space-y-4"
     >
-      <span style={{ color: selected ? accent : textColor }}>{icon}</span>
-      {label}
-    </button>
+      <p className="font-inter text-[9px] font-bold uppercase tracking-[0.45em] text-[#D4AF37]">
+        {label}
+      </p>
+      {children}
+    </motion.div>
   )
 }
 
-/* Icons */
-function IconChevron() {
+function IconCart() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
-  )
-}
-
-function IconMale() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="10" cy="14" r="5" />
-      <path d="M19 5l-6 6" />
-      <path d="M22 5h-5M19 8V3" />
-    </svg>
-  )
-}
-
-function IconFemale() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="9" r="5" />
-      <path d="M12 14v7" />
-      <path d="M9 21h6" />
+      <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <path d="M16 10a4 4 0 0 1-8 0" />
     </svg>
   )
 }

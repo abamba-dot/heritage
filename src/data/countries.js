@@ -1,0 +1,14 @@
+export const countries = [
+  { id: "benin",       name: "Bénin",        flag: "🇧🇯", code: "229", image: "/collection/benin.jpeg" },
+  { id: "cameroun",   name: "Cameroun",      flag: "🇨🇲", code: "237", image: "/collection/cameroun.jpeg" },
+  { id: "congo",      name: "Congo",         flag: "🇨🇬", code: "242", image: "/collection/congo.jpeg" },
+  { id: "cote-ivoire",name: "Côte d'Ivoire", flag: "🇨🇮", code: "225", image: "/collection/cote divoire.jpeg" },
+  { id: "gabon",      name: "Gabon",         flag: "🇬🇦", code: "241", image: "/collection/gabon.jpeg" },
+  { id: "guinee",     name: "Guinée",        flag: "🇬🇳", code: "224", image: "/collection/guinee.jpeg" },
+  { id: "mali",       name: "Mali",          flag: "🇲🇱", code: "223", image: "/collection/mali.jpeg" },
+  { id: "maroc",      name: "Maroc",         flag: "🇲🇦", code: "212", image: "/collection/maroc.jpeg" },
+  { id: "allemagne",  name: "Allemagne",     flag: "🇩🇪", code: "49",  image: "/collection/allemagne.jpeg" },
+  { id: "france",     name: "France",        flag: "🇫🇷", code: "33",  image: "/collection/france.jpeg" },
+  { id: "bresil",     name: "Brésil",        flag: "🇧🇷", code: "55",  image: "/collection/bresil.jpeg" },
+  { id: "equateur",   name: "Équateur",      flag: "🇪🇨", code: "593", image: "/collection/equateur.jpeg" },
+]
