@@ -64,12 +64,20 @@ export default function LoadingScreen() {
       ref={ref}
       className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-[#0D0D0D]"
     >
-      {/* H Logo — positioned above text, reveals last (~1.7s) */}
+      {/* Icône — reveals last (~1.7s) */}
       <div
         className="ls-logo mb-10"
         style={{ opacity: 0, transform: 'scale(0.5)' }}
       >
-        <HLogo />
+        <img
+          src="/images/icone%20heritage.png"
+          alt=""
+          aria-hidden="true"
+          width={72}
+          height={72}
+          className="h-[72px] w-[72px] object-contain"
+          style={{ filter: 'drop-shadow(0 0 20px rgba(212,175,55,0.65))' }}
+        />
       </div>
 
       {/* HÉRITAGES — letters stagger in one by one */}
@@ -112,28 +120,3 @@ export default function LoadingScreen() {
   )
 }
 
-function HLogo() {
-  return (
-    <svg
-      width="72"
-      height="72"
-      viewBox="0 0 72 72"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{ filter: 'drop-shadow(0 0 20px rgba(212,175,55,0.65))' }}
-    >
-      {/* Two pillars */}
-      <rect x="6" y="8" width="12" height="56" fill="#D4AF37" />
-      <rect x="54" y="8" width="12" height="56" fill="#D4AF37" />
-      {/* Crossbar */}
-      <rect x="6" y="30" width="60" height="12" fill="#D4AF37" />
-      {/* Central diamond — dark cutout creates star-in-crossbar effect */}
-      <polygon points="36,24 43,36 36,48 29,36" fill="#0D0D0D" />
-      {/* Corner ornaments */}
-      <rect x="6" y="8" width="4" height="4" fill="#F5F0E1" />
-      <rect x="62" y="8" width="4" height="4" fill="#F5F0E1" />
-      <rect x="6" y="60" width="4" height="4" fill="#F5F0E1" />
-      <rect x="62" y="60" width="4" height="4" fill="#F5F0E1" />
-    </svg>
-  )
-}
