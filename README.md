@@ -30,6 +30,8 @@ npm run preview  # prévisualise le build
 **Vercel** : framework `Vite`, build command `npm run build`, output `dist`.  
 Le fichier `vercel.json` configure le SPA rewrite vers `index.html`.
 
+**VPS Ubuntu + Nginx** : voir [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ## Structure du projet
 
 ```

@@ -3,9 +3,10 @@ import { AnimatePresence, LayoutGroup, motion, useInView } from 'framer-motion'
 import { gsap } from 'gsap'
 import { useCart } from '../context/CartContext'
 import { countries } from '../data/countries'
+import { CONFIG } from '../data/config'
+import PrixDisplay from './PrixDisplay'
 
 const SIZES = ['S', 'M', 'L', 'XL', 'XXL']
-const WHATSAPP_NUMBER = '212781636843'
 
 // ─── Breakpoint hook ─────────────────────────────────────────────────────────
 function useIsMobile() {
@@ -21,18 +22,36 @@ function useIsMobile() {
   return mobile
 }
 
+// ─── Animated counter — attaches to a ref'd <span> ───────────────────────────
+function useAnimatedCount(target) {
+  const ref = useRef(null)
+  const prevRef = useRef(target)
+  useEffect(() => {
+    const from = prevRef.current
+    const to = target
+    prevRef.current = to
+    if (from === to) return
+    const start = performance.now()
+    const ease = (t) => 1 - (1 - t) ** 3
+    const frame = (now) => {
+      const p = Math.min((now - start) / 600, 1)
+      if (ref.current) ref.current.textContent = Math.round(from + (to - from) * ease(p))
+      if (p < 1) requestAnimationFrame(frame)
+    }
+    requestAnimationFrame(frame)
+  }, [target])
+  return ref
+}
+
 // ─── Root ─────────────────────────────────────────────────────────────────────
 export default function Configurator() {
-  const { addItem, openCart } = useCart()
+  const { addItem } = useCart()
   const isMobile = useIsMobile()
-  const [confirmation, setConfirmation] = useState(null)
+  const [orderData, setOrderData] = useState(null)
 
   const handleAddToCart = ({ selectedCountry, size, hasCustomRequest, customRequest }) => {
-    const customization =
-      hasCustomRequest && customRequest.trim()
-        ? ` — Personnalisation : ${customRequest.trim()}`
-        : ''
-    const recap = `${selectedCountry.flag} HÉRITAGES ${selectedCountry.name} — Taille ${size}${customization}`
+    const hasPersonalisation = hasCustomRequest
+    const price = hasPersonalisation ? CONFIG.prix_personnalise : CONFIG.prix_standard
 
     addItem(
       {
@@ -43,22 +62,37 @@ export default function Configurator() {
         color: 'Collection officielle',
         colorHex: '#D4AF37',
         size,
+        price,
         personalizations:
-          hasCustomRequest && customRequest.trim() ? [customRequest.trim()] : [],
+          hasPersonalisation && customRequest.trim() ? [customRequest.trim()] : [],
         image: selectedCountry.image,
         flag: selectedCountry.flag,
-        signature: JSON.stringify({ country: selectedCountry.id, size }),
+        signature: JSON.stringify({ country: selectedCountry.id, size, hasPersonalisation }),
       },
       { openCart: false }
     )
-    setConfirmation(recap)
+
+    setOrderData({
+      selectedCountry,
+      size,
+      hasPersonalisation,
+      customRequest: customRequest.trim(),
+      price,
+    })
   }
 
-  const whatsappUrl = confirmation
-    ? `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
-        `Bonjour HÉRITAGES, je souhaite commander :\n\n${confirmation}`
-      )}`
-    : '#'
+  const buildWhatsappUrl = (data) => {
+    if (!data) return '#'
+    const { selectedCountry, size, hasPersonalisation, customRequest } = data
+    let msg
+    if (hasPersonalisation) {
+      msg = `Bonjour, je souhaite commander :\nHÉRITAGES — ${selectedCountry.name} | Taille ${size}\nT-shirt personnalisé — ${CONFIG.prix_personnalise} ${CONFIG.devise}`
+      if (customRequest) msg += `\nDemande : ${customRequest}`
+    } else {
+      msg = `Bonjour, je souhaite commander :\nHÉRITAGES — ${selectedCountry.name} | Taille ${size}\nT-shirt standard — ${CONFIG.prix_standard} ${CONFIG.devise}`
+    }
+    return `https://wa.me/${CONFIG.whatsapp_number}?text=${encodeURIComponent(msg)}`
+  }
 
   return (
     <>
@@ -70,9 +104,9 @@ export default function Configurator() {
         )}
       </section>
 
-      {/* Confirmation modal — shared */}
+      {/* ── Confirmation modal ─────────────────────────────────────────────── */}
       <AnimatePresence>
-        {confirmation && (
+        {orderData && (
           <motion.div
             className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-5 backdrop-blur-sm"
             initial={{ opacity: 0 }}
@@ -86,34 +120,62 @@ export default function Configurator() {
               className="w-full max-w-md border border-white/10 bg-[#0D0D0D] p-6 text-[#F5F0E1] shadow-2xl"
             >
               <p className="font-inter text-[10px] uppercase tracking-[0.35em] text-[#D4AF37]">
-                Ajouté au panier
+                Commande confirmée
               </p>
               <h3 className="mt-2 font-block text-2xl font-bold">Récapitulatif</h3>
-              <p className="mt-4 font-inter text-sm leading-relaxed text-[#F5F0E1]/75">
-                {confirmation}
-              </p>
-              <div className="mt-6 grid gap-3">
-                <button
-                  type="button"
-                  onClick={() => { setConfirmation(null); openCart() }}
-                  className="bg-[#D4AF37] py-3 font-cinzel text-xs font-black uppercase tracking-[0.25em] text-[#0D0D0D] transition-opacity hover:opacity-90"
-                >
-                  Voir le panier
-                </button>
+
+              {/* Country + size */}
+              <div className="mt-4 flex items-center gap-3 border-b border-white/10 pb-3">
+                <span className="text-xl">{orderData.selectedCountry.flag}</span>
+                <span className="font-inter text-sm text-[#F5F0E1]/80">
+                  {orderData.selectedCountry.name}
+                </span>
+                <span className="text-[#F5F0E1]/22">|</span>
+                <span className="font-inter text-sm text-[#F5F0E1]/80">Taille {orderData.size}</span>
+              </div>
+
+              {/* Pricing lines */}
+              <div className="mt-3 space-y-2">
+                <div className="flex justify-between font-inter text-sm text-[#F5F0E1]/72">
+                  <span>T-shirt standard</span>
+                  <span>{CONFIG.prix_standard} {CONFIG.devise}</span>
+                </div>
+                {orderData.hasPersonalisation && (
+                  <div className="flex justify-between font-inter text-sm text-[#D4AF37]/80">
+                    <span>+ Personnalisation</span>
+                    <span>+ {CONFIG.prix_personnalise - CONFIG.prix_standard} {CONFIG.devise}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="my-3 border-t border-white/10" />
+
+              {/* Total */}
+              <div className="flex items-center justify-between border-l-[3px] border-[#D4AF37] bg-[#1A1500] px-4 py-3">
+                <span className="font-cinzel text-sm uppercase tracking-[0.2em] text-[#F5F0E1]">
+                  TOTAL
+                </span>
+                <span className="font-cinzel text-2xl font-black text-[#D4AF37]">
+                  {orderData.price} {CONFIG.devise}
+                </span>
+              </div>
+
+              {/* Actions */}
+              <div className="mt-5 grid gap-3">
                 <a
-                  href={whatsappUrl}
+                  href={buildWhatsappUrl(orderData)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block bg-[#25D366] py-3 text-center font-cinzel text-xs font-bold uppercase tracking-[0.2em] text-[#0D0D0D] transition-opacity hover:opacity-90"
+                  className="block bg-[#D4AF37] py-3 text-center font-cinzel text-xs font-bold uppercase tracking-[0.2em] text-[#0D0D0D] transition-opacity hover:opacity-90"
                 >
                   Commander via WhatsApp
                 </a>
                 <button
                   type="button"
-                  onClick={() => setConfirmation(null)}
-                  className="border border-white/15 py-3 font-inter text-xs uppercase tracking-[0.2em] text-[#F5F0E1]/55 transition-colors hover:border-white/30 hover:text-[#F5F0E1]"
+                  onClick={() => setOrderData(null)}
+                  className="border border-[#D4AF37] py-3 font-cinzel text-xs uppercase tracking-[0.25em] text-[#D4AF37] transition-colors hover:bg-[#D4AF37]/10"
                 >
-                  Continuer mes achats
+                  Continuer
                 </button>
               </div>
             </motion.div>
@@ -468,6 +530,41 @@ function MobileStep3({
   customRequest, setCustomRequest,
   onSubmit,
 }) {
+  const prix = hasCustomRequest ? CONFIG.prix_personnalise : CONFIG.prix_standard
+  const mobilePriceRef = useRef(null)
+  const prevPrixRef = useRef(prix)
+  const [showTooltip, setShowTooltip] = useState(false)
+  const tooltipTimer = useRef(null)
+
+  useEffect(() => {
+    const from = prevPrixRef.current
+    const to = prix
+    prevPrixRef.current = to
+    if (from === to) return
+    const start = performance.now()
+    const ease = (t) => 1 - (1 - t) ** 3
+    const frame = (now) => {
+      const p = Math.min((now - start) / 600, 1)
+      if (mobilePriceRef.current) {
+        mobilePriceRef.current.textContent = Math.round(from + (to - from) * ease(p))
+      }
+      if (p < 1) requestAnimationFrame(frame)
+    }
+    requestAnimationFrame(frame)
+  }, [prix])
+
+  useEffect(() => {
+    if (hasCustomRequest) {
+      clearTimeout(tooltipTimer.current)
+      setShowTooltip(true)
+      tooltipTimer.current = setTimeout(() => setShowTooltip(false), 2500)
+    } else {
+      setShowTooltip(false)
+      clearTimeout(tooltipTimer.current)
+    }
+    return () => clearTimeout(tooltipTimer.current)
+  }, [hasCustomRequest])
+
   return (
     <div className="px-5 pb-32 pt-6">
       <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-1 border border-[#D4AF37]/30 bg-[#1A1A1A] px-3 py-2.5">
@@ -543,11 +640,30 @@ function MobileStep3({
         )}
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#1A1A1A] bg-[#0D0D0D] p-4">
+      {/* Fixed bottom bar — prix + bouton */}
+      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center border-t border-[#D4AF37]/30 bg-[#0D0D0D]">
+        <div className="relative pl-5 pr-4 py-3">
+          <AnimatePresence>
+            {showTooltip && (
+              <motion.span
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className="absolute bottom-full left-4 mb-2 whitespace-nowrap rounded border border-[#D4AF37] bg-[#1A1500] px-2.5 py-1 font-inter text-[11px] text-[#F5F0E1]"
+              >
+                Personnalisation incluse ✦
+              </motion.span>
+            )}
+          </AnimatePresence>
+          <span className="font-cinzel text-[22px] font-black text-[#D4AF37]">
+            <span ref={mobilePriceRef}>{prix}</span> {CONFIG.devise}
+          </span>
+        </div>
         <button
           type="button"
           onClick={onSubmit}
-          className="flex w-full items-center justify-center gap-3 bg-[#D4AF37] py-4 font-cinzel text-sm font-black uppercase tracking-[0.22em] text-[#0D0D0D] active:opacity-85"
+          className="m-2 flex flex-1 items-center justify-center gap-3 bg-[#D4AF37] py-3.5 font-cinzel text-sm font-black uppercase tracking-[0.22em] text-[#0D0D0D] active:opacity-85"
         >
           <IconCart />
           Ajouter au panier
@@ -574,6 +690,9 @@ function DesktopLayout({ onAddToCart }) {
     () => countries.find((c) => c.id === countryId) ?? null,
     [countryId]
   )
+
+  const prix = hasCustomRequest ? CONFIG.prix_personnalise : CONFIG.prix_standard
+  const recapPriceRef = useAnimatedCount(prix)
 
   const shake = (el) => {
     if (!el) return
@@ -806,7 +925,18 @@ function DesktopLayout({ onAddToCart }) {
                   {size ? `Taille ${size}` : '—'}
                 </span>
               </p>
+              <div className="mt-2 flex items-center justify-between">
+                <span className="font-inter text-[9px] font-bold uppercase tracking-[0.38em] text-[#D4AF37]/55">
+                  TOTAL
+                </span>
+                <span className="font-inter text-sm font-bold text-[#D4AF37]">
+                  <span ref={recapPriceRef}>{prix}</span> {CONFIG.devise}
+                </span>
+              </div>
             </div>
+
+            {/* Prix display — entre récap et CTA */}
+            <PrixDisplay prix={prix} hasPersonalisation={hasCustomRequest} />
 
             <AnimatePresence>
               {(errors.country || errors.size) && (
