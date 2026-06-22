@@ -6,6 +6,7 @@ export const countries = [
   { id: "gabon",      name: "Gabon",         flag: "🇬🇦", code: "241", image: "/collection/gabon.jpeg" },
   { id: "guinee",     name: "Guinée",        flag: "🇬🇳", code: "224", image: "/collection/guinee.jpeg" },
   { id: "mali",       name: "Mali",          flag: "🇲🇱", code: "223", image: "/collection/mali.jpeg" },
+  { id: "senegal",    name: "Sénégal",       flag: "🇸🇳", code: "221", image: "/collection/senegal.jpeg" },
   { id: "maroc",      name: "Maroc",         flag: "🇲🇦", code: "212", image: "/collection/maroc.jpeg" },
   { id: "allemagne",  name: "Allemagne",     flag: "🇩🇪", code: "49",  image: "/collection/allemagne.jpeg" },
   { id: "france",     name: "France",        flag: "🇫🇷", code: "33",  image: "/collection/france.jpeg" },
